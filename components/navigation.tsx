@@ -7,11 +7,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bot, List, TestTube, PenTool, LogOut, User, Shield, Instagram } from "lucide-react"
 import { useAuth, usePermission } from "@/hooks/use-auth"
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export function Navigation() {
   const pathname = usePathname()
   const { user, logout, isAuthenticated } = useAuth()
   const { hasPermission, isAdmin, hasGroup } = usePermission()
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [email, setEmail] = useState(user?.email || "")
+  const [emailSaved, setEmailSaved] = useState(false)
+
+  const handleEmailSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    setEmailModalOpen(false)
+    setEmailSaved(true)
+    // TODO: API 연동 (PATCH /api/profile 등)
+  }
 
   if (pathname === "/login" || !isAuthenticated) {
     return null
@@ -101,19 +115,15 @@ export function Navigation() {
                   <p className="text-xs text-gray-500">{user?.email}</p>
                   <p className="text-xs text-gray-500">{user?.company}</p>
                 </div>
+                <DropdownMenuItem onClick={() => setEmailModalOpen(true)}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>이메일 변경</span>
+                </DropdownMenuItem>
                 {isAdmin() && (
                   <Link href="/administrator">
                     <DropdownMenuItem>
                       <User className="mr-2 h-4 w-4" />
                       <span>관리자 설정</span>
-                    </DropdownMenuItem>
-                  </Link>
-                )}
-                {!isAdmin() && hasGroup('user') && (
-                  <Link href="/request-access">
-                    <DropdownMenuItem>
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>권한 요청</span>
                     </DropdownMenuItem>
                   </Link>
                 )}
@@ -126,6 +136,30 @@ export function Navigation() {
           </div>
         </div>
       </div>
+      <Dialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>이메일 변경</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEmailSave} className="space-y-4">
+            <div className="text-sm text-gray-500 mb-2">현재 이메일: {user?.email}</div>
+            <div>
+              <Label htmlFor="email">새 이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit">저장</Button>
+              <Button type="button" variant="outline" onClick={() => setEmailModalOpen(false)}>취소</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </nav>
   )
 }

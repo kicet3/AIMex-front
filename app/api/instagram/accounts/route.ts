@@ -1,31 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { InstagramAPIService } from '@/lib/instagram-business-api'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const accessToken = searchParams.get('access_token')
-    const userId = searchParams.get('user_id') || 'me'
-
+    
     if (!accessToken) {
       return NextResponse.json(
-        { error: 'Missing access_token' },
+        { success: false, error: 'Access token is required' },
         { status: 400 }
       )
     }
 
-    const instagramService = new InstagramAPIService(accessToken)
-    const userInfo = await instagramService.getUserInfo(userId)
+    // Instagram Graph API를 통해 사용자 정보 가져오기
+    const response = await fetch(`https://graph.instagram.com/v18.0/me?fields=id,username,account_type,media_count,name,biography,website,profile_picture_url,followers_count,follows_count&access_token=${accessToken}`)
+    
+    if (!response.ok) {
+      throw new Error(`Instagram API error: ${response.status}`)
+    }
 
+    const data = await response.json()
+    
     return NextResponse.json({
       success: true,
-      data: userInfo
+      data: data
     })
   } catch (error) {
-    console.error('Instagram account fetch error:', error)
+    console.error('Error fetching Instagram account:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch Instagram account' },
+      { success: false, error: 'Failed to fetch Instagram account' },
       { status: 500 }
     )
   }
-}
+} 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 import { RequireAuth, RequirePermission } from "@/components/auth/protected-route"
@@ -23,62 +23,29 @@ import { Plus, Search, Settings, Trash2 } from "lucide-react"
 import { usePermission } from "@/hooks/use-auth"
 import type { AIModel } from "@/lib/types"
 
-// 샘플 데이터 (권한별 그룹 정보 추가)
-const sampleModels: AIModel[] = [
-  {
-    id: "1",
-    name: "패션 인플루언서 AI",
-    description: "20대 여성 타겟의 패션 트렌드 전문 AI 인플루언서",
-    personality: "친근하고 트렌디한",
-    tone: "캐주얼하고 친밀한",
-    status: "ready",
-    createdAt: "2024-01-15",
-    trainingData: { textSamples: 1500, voiceSamples: 200, imageSamples: 300 },
-    allowedGroups: ["fashion", "marketing"],
-    ownerId: "user1",
-  },
-  {
-    id: "2",
-    name: "뷰티 전문가 AI",
-    description: "화장품 리뷰 및 뷰티 팁 전문 AI 인플루언서",
-    personality: "전문적이고 신뢰할 수 있는",
-    tone: "정중하고 전문적인",
-    status: "training",
-    createdAt: "2024-01-20",
-    trainingData: { textSamples: 2000, voiceSamples: 150, imageSamples: 250 },
-    allowedGroups: ["beauty", "marketing"],
-    ownerId: "user2",
-  },
-  {
-    id: "3",
-    name: "피트니스 코치 AI",
-    description: "운동 및 건강 관리 전문 AI 인플루언서",
-    personality: "동기부여하고 에너지 넘치는",
-    tone: "격려하고 활기찬",
-    status: "ready",
-    createdAt: "2024-01-10",
-    trainingData: { textSamples: 1200, voiceSamples: 180, imageSamples: 220 },
-    allowedGroups: ["fitness", "health"],
-    ownerId: "user1",
-  },
-  {
-    id: "4",
-    name: "기업 전용 AI",
-    description: "관리자만 접근 가능한 기업 전용 AI 모델",
-    personality: "전문적이고 공식적인",
-    tone: "정중하고 비즈니스적인",
-    status: "ready",
-    createdAt: "2024-01-25",
-    trainingData: { textSamples: 3000, voiceSamples: 300, imageSamples: 400 },
-    allowedGroups: ["admin"],
-    ownerId: "admin",
-  },
-]
-
 export default function DashboardPage() {
-  const [models, setModels] = useState<AIModel[]>(sampleModels)
+  const [models, setModels] = useState<AIModel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const { canAccessModel, hasPermission, user } = usePermission()
+
+  useEffect(() => {
+    setLoading(true)
+    fetch("/api/v1/influencers")
+      .then((res) => {
+        if (!res.ok) throw new Error("모델 목록을 불러오지 못했습니다.")
+        return res.json()
+      })
+      .then((data) => {
+        setModels(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [])
 
   const accessibleModels = useMemo(() => {
     return models.filter(model => canAccessModel(model.allowedGroups))
@@ -92,13 +59,13 @@ export default function DashboardPage() {
 
   const handleDeleteModel = (modelId: string) => {
     const model = models.find(m => m.id === modelId)
-    if (model && (hasPermission('model', 'delete') || model.ownerId === user?.id)) {
+    if (model && (hasPermission('model', 'delete') || model.ownerId === user?.user_id)) {
       setModels((prev) => prev.filter((model) => model.id !== modelId))
     }
   }
 
   const canDeleteModel = (model: AIModel) => {
-    return hasPermission('model', 'delete') || model.ownerId === user?.id
+    return hasPermission('model', 'delete') || model.ownerId === user?.user_id
   }
 
   const getStatusBadge = (status: AIModel["status"]) => {
@@ -106,12 +73,20 @@ export default function DashboardPage() {
       case "ready":
         return <Badge className="bg-green-100 text-green-800">사용 가능</Badge>
       case "training":
-        return <Badge className="bg-yellow-100 text-yellow-800">생성중</Badge>
+        return <Badge className="bg-yellow-100 text-yellow-800">생성 중</Badge>
       case "error":
         return <Badge className="bg-red-100 text-red-800">오류</Badge>
       default:
         return <Badge variant="secondary">알 수 없음</Badge>
     }
+  }
+
+  // null/undefined 값을 처리하는 함수
+  const formatValue = (value: string | number | undefined | null): string => {
+    if (value === null || value === undefined || value === '') {
+      return '-'
+    }
+    return String(value)
   }
 
   return (
@@ -162,7 +137,7 @@ export default function DashboardPage() {
                   <p className="text-3xl font-bold text-yellow-600">
                     {accessibleModels.filter((model) => model.status === "training").length}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">학습 중</p>
+                  <p className="text-sm text-gray-600 mt-1">생성 중</p>
                 </div>
               </CardContent>
             </Card>
@@ -195,7 +170,7 @@ export default function DashboardPage() {
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800 hover:bg-red-50">
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </Button> 
                         </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -230,22 +205,20 @@ export default function DashboardPage() {
                 <div className="space-y-3 flex-1">
                   <div>
                     <p className="text-sm font-medium text-gray-700">성격</p>
-                    <p className="text-sm text-gray-600">{model.personality}</p>
+                    <p className="text-sm text-gray-600">{formatValue(model.personality)}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-700">말투</p>
-                    <p className="text-sm text-gray-600">{model.tone}</p>
+                    <p className="text-sm font-medium text-gray-700">성별</p>
+                    <p className="text-sm text-gray-600">{formatValue(model.gender)}</p>
                   </div>
-                  {model.trainingData && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">학습 데이터</p>
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p>텍스트: {model.trainingData.textSamples}개</p>
-                        <p>음성: {model.trainingData.voiceSamples}개</p>
-                        <p>이미지: {model.trainingData.imageSamples}개</p>
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">MBTI</p>
+                    <p className="text-sm text-gray-600">{formatValue(model.mbti?.toString())}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">나이</p>
+                    <p className="text-sm text-gray-600">{formatValue(model.age)}</p>
+                  </div>
                   <div className="flex pt-4 mt-auto">
                     <Link href={`/model/${model.id}`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full">

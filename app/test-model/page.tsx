@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,37 +12,6 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MessageSquare, Send, Bot, User } from "lucide-react"
 import type { AIModel } from "@/lib/types"
-
-// 샘플 모델 데이터
-const availableModels: AIModel[] = [
-  {
-    id: "1",
-    name: "패션 인플루언서 AI",
-    description: "20대 여성 타겟의 패션 트렌드 전문 AI 인플루언서",
-    personality: "친근하고 트렌디한",
-    tone: "캐주얼하고 친밀한",
-    status: "ready",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "뷰티 전문가 AI",
-    description: "화장품 리뷰 및 뷰티 팁 전문 AI 인플루언서",
-    personality: "전문적이고 신뢰할 수 있는",
-    tone: "정중하고 전문적인",
-    status: "ready",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: "3",
-    name: "피트니스 코치 AI",
-    description: "운동 및 건강 관리 전문 AI 인플루언서",
-    personality: "동기부여하고 에너지 넘치는",
-    tone: "격려하고 활기찬",
-    status: "ready",
-    createdAt: "2024-01-10",
-  },
-]
 
 interface ChatMessage {
   id: string
@@ -84,10 +53,30 @@ const getModelResponses = (modelId: string, userMessage: string) => {
 }
 
 export default function TestModelPage() {
+  const [models, setModels] = useState<AIModel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
+
+  useEffect(() => {
+    setLoading(true)
+    fetch("/api/v1/influencers")
+      .then((res) => {
+        if (!res.ok) throw new Error("모델 목록을 불러오지 못했습니다.")
+        return res.json()
+      })
+      .then((data) => {
+        setModels(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [])
 
   const handleModelToggle = (modelId: string) => {
     setSelectedModels((prev) => (prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]))
@@ -110,7 +99,7 @@ export default function TestModelPage() {
     // 각 선택된 모델에 대해 응답 생성
     setTimeout(() => {
       const aiMessages: ChatMessage[] = selectedModels.map((modelId, index) => {
-        const model = availableModels.find((m) => m.id === modelId)
+        const model = models.find((m) => m.id === modelId)
         const response = getModelResponses(modelId, userMessage.content)
 
         return {
@@ -135,7 +124,7 @@ export default function TestModelPage() {
     }
   }
 
-  const selectedModelData = availableModels.filter((model) => selectedModels.includes(model.id))
+  const selectedModelData = models.filter((model) => selectedModels.includes(model.id))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -160,7 +149,7 @@ export default function TestModelPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {availableModels.map((model) => (
+                  {models.map((model) => (
                     <div key={model.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50">
                       <Checkbox
                         id={model.id}
@@ -249,7 +238,7 @@ export default function TestModelPage() {
                   {isLoading && (
                     <div className="space-y-3">
                       {selectedModels.map((modelId) => {
-                        const model = availableModels.find((m) => m.id === modelId)
+                        const model = models.find((m) => m.id === modelId)
                         return (
                           <div key={modelId} className="flex justify-start">
                             <div className="bg-white border border-gray-200 rounded-lg px-4 py-2">

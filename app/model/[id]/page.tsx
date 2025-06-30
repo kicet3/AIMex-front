@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
@@ -50,20 +50,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-// 샘플 모델 데이터
-const sampleModel: AIModel = {
-  id: "1",
-  name: "패션 인플루언서 AI",
-  description: "20대 여성 타겟의 패션 트렌드 전문 AI 인플루언서",
-  personality: "친근하고 트렌디한",
-  tone: "캐주얼하고 친밀한",
-  status: "ready",
-  createdAt: "2024-01-15",
-  apiKey: "ai_inf_1234567890abcdef",
-  trainingData: { textSamples: 1500, voiceSamples: 200, imageSamples: 300 },
-}
-
-// 샘플 콘텐츠 데이터
+// 게시글 타입(ContentPost) 직접 정의
 interface ContentPost {
   id: string
   title: string
@@ -86,101 +73,47 @@ interface ContentPost {
   }
 }
 
-const samplePosts: ContentPost[] = [
-  {
-    id: "1",
-    title: "겨울 패션 트렌드 2024",
-    content:
-      "안녕하세요 여러분! 🌟 오늘은 겨울 패션 트렌드에 대해 이야기해보려고 해요!\n\n요즘 정말 핫한 트렌드인데, 저도 직접 체험해보니까 정말 만족스러웠어요! 특히 컬러감이나 디자인이 너무 예뻐서 여러분께도 꼭 추천하고 싶어요 💕\n\n겨울철 필수 아이템들:\n✨ 롱 코트 - 클래식하면서도 우아한 느낌\n✨ 니트 스웨터 - 따뜻하고 포근한 감성\n✨ 부츠 - 스타일리시하면서도 실용적\n\n여러분은 어떤 겨울 아이템을 가장 좋아하시나요? 댓글로 의견 남겨주세요!",
-    platform: "Instagram",
-    status: "published",
-    publishedAt: "2024-01-20T14:30:00",
-    engagement: { likes: 1247, comments: 89, shares: 34 },
-    hashtags: ["#겨울패션", "#트렌드", "#스타일", "#OOTD", "#패션인플루언서"],
-    media: {
-      type: "carousel",
-      urls: [
-        "/placeholder.svg?height=400&width=400",
-        "/placeholder.svg?height=400&width=400",
-        "/placeholder.svg?height=400&width=400",
-      ],
-    },
-  },
-  {
-    id: "2",
-    title: "신년 스타일링 팁",
-    content:
-      "새해 맞이 스타일링 팁을 공유해드릴게요! ✨\n\n새로운 한 해, 새로운 스타일로 시작해보는 건 어떨까요? 작은 변화부터 시작해서 완전히 새로운 나를 발견할 수 있어요!\n\n💡 2024 스타일링 팁:\n1. 기본기가 가장 중요해요 - 베이직 아이템을 잘 활용하세요\n2. 컬러 매칭에 신경써보세요 - 올해는 대담한 컬러 조합에 도전!\n3. 액세서리로 포인트를 주세요 - 작은 디테일이 큰 차이를 만들어요\n4. 자신감이 최고의 액세서리예요!\n\n여러분만의 특별한 스타일을 찾아보시고 후기 공유해주세요! 함께 성장하는 패션 커뮤니티를 만들어가요 💪",
-    platform: "Facebook",
-    status: "published",
-    publishedAt: "2024-01-18T10:15:00",
-    engagement: { likes: 892, comments: 56, shares: 23 },
-    hashtags: ["#신년", "#스타일링", "#팁", "#패션", "#2024트렌드"],
-    media: {
-      type: "image",
-      urls: ["/placeholder.svg?height=300&width=500"],
-    },
-  },
-  {
-    id: "3",
-    title: "봄 시즌 미리보기",
-    content:
-      "곧 다가올 봄 시즌을 위한 준비! 🌸 파스텔 톤과 플로럴 패턴이 대세가 될 것 같아요. 미리 준비해서 트렌드를 선도해보세요!",
-    platform: "Twitter",
-    status: "scheduled",
-    publishedAt: "",
-    scheduledAt: "2024-01-25T16:00:00",
-    engagement: { likes: 0, comments: 0, shares: 0 },
-    hashtags: ["#봄패션", "#파스텔", "#플로럴", "#미리보기", "#2024SS"],
-    media: {
-      type: "image",
-      urls: ["/placeholder.svg?height=200&width=400"],
-    },
-  },
-  {
-    id: "4",
-    title: "겨울 아우터 추천",
-    content:
-      "추운 겨울, 따뜻하면서도 스타일리시한 아우터 추천드려요! 🧥 롱 울 코트부터 패딩까지, 다양한 스타일을 소개해드릴게요.",
-    platform: "TikTok",
-    status: "draft",
-    publishedAt: "",
-    engagement: { likes: 0, comments: 0, shares: 0, views: 0 },
-    hashtags: ["#겨울아우터", "#코트", "#패딩", "#추천"],
-    media: {
-      type: "video",
-      urls: ["/placeholder.svg?height=600&width=400"],
-      thumbnailUrl: "/placeholder.svg?height=600&width=400",
-    },
-  },
-  {
-    id: "5",
-    title: "2024 패션 트렌드 완벽 가이드",
-    content:
-      "안녕하세요! 오늘은 2024년 패션 트렌드에 대해 자세히 알아보는 시간을 가져보려고 합니다.\n\n이번 영상에서는 올해 가장 주목받을 패션 트렌드들을 소개하고, 각 트렌드를 어떻게 일상에서 활용할 수 있는지 실용적인 팁들을 공유해드릴 예정입니다.\n\n📌 영상 목차:\n00:00 인트로\n01:30 2024 컬러 트렌드\n03:45 실루엣 변화\n06:20 액세서리 트렌드\n08:10 스타일링 팁\n10:30 마무리\n\n구독과 좋아요는 큰 힘이 됩니다! 💕",
-    platform: "YouTube",
-    status: "published",
-    publishedAt: "2024-01-22T18:00:00",
-    engagement: { likes: 2341, comments: 156, shares: 78, views: 15420 },
-    hashtags: ["#패션트렌드", "#2024패션", "#스타일링", "#패션가이드"],
-    media: {
-      type: "video",
-      urls: ["/placeholder.svg?height=315&width=560"],
-      thumbnailUrl: "/placeholder.svg?height=315&width=560",
-    },
-  },
-]
+// 샘플 모델 데이터
+// const sampleModel: AIModel = {...}
+// 샘플 콘텐츠 데이터
+// const samplePosts: ContentPost[] = [...]
 
 export default function ModelDetailPage() {
   const params = useParams()
-  const [model, setModel] = useState<AIModel>(sampleModel)
-  const [posts] = useState<ContentPost[]>(samplePosts)
+  const [model, setModel] = useState<AIModel | null>(null)
+  const [posts, setPosts] = useState<ContentPost[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedPost, setSelectedPost] = useState<ContentPost | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   
   // 환경 변수에서 채팅 기능 활성화 여부 확인
   const isChatEnabled = process.env.NEXT_PUBLIC_ENABLE_CHAT === 'true'
+
+  useEffect(() => {
+    if (!params?.id) return;
+    setLoading(true)
+    Promise.all([
+      fetch(`/api/v1/influencers/${params.id}`).then(res => {
+        if (!res.ok) throw new Error('모델 정보를 불러오지 못했습니다.');
+        return res.json();
+      }),
+      fetch(`/api/v1/boards?modelId=${params.id}`).then(res => {
+        if (!res.ok) throw new Error('게시글을 불러오지 못했습니다.');
+        return res.json();
+      })
+    ])
+      .then(([modelData, postsData]) => {
+        setModel(modelData)
+        setPosts(postsData)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [params?.id])
 
   const handleUpdateModel = async () => {
     setIsUpdating(true)
@@ -198,14 +131,26 @@ export default function ModelDetailPage() {
   }
 
   const copyApiKey = () => {
-    if (model.apiKey) {
+    if (model?.apiKey) {
       navigator.clipboard.writeText(model.apiKey)
     }
   }
 
   const generateNewApiKey = () => {
-    const newKey = "ai_inf_" + Math.random().toString(36).substring(2, 18)
-    setModel((prev) => ({ ...prev, apiKey: newKey }))
+    setModel((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        apiKey: "ai_inf_" + Math.random().toString(36).substring(2, 18),
+        id: prev.id,
+        name: prev.name,
+        description: prev.description,
+        personality: prev.personality,
+        tone: prev.tone,
+        status: prev.status,
+        createdAt: prev.createdAt
+      };
+    });
   }
 
   const getStatusBadge = (status: ContentPost["status"]) => {
@@ -269,7 +214,7 @@ export default function ModelDetailPage() {
                   <AvatarFallback className="bg-pink-500 text-white text-xs">AI</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold text-sm">{model.name}</p>
+                  <p className="font-semibold text-sm">{model?.name}</p>
                   <p className="text-xs text-gray-500">패션 인플루언서</p>
                 </div>
               </div>
@@ -321,7 +266,7 @@ export default function ModelDetailPage() {
 
               {/* 캡션 */}
               <div className="text-sm">
-                <span className="font-semibold">{model.name}</span>{" "}
+                <span className="font-semibold">{model?.name}</span>{" "}
                 <span className="whitespace-pre-wrap">{post.content}</span>
               </div>
 
@@ -350,7 +295,7 @@ export default function ModelDetailPage() {
                 <AvatarFallback className="bg-blue-600 text-white">AI</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <p className="font-semibold text-sm">{model.name}</p>
+                <p className="font-semibold text-sm">{model?.name}</p>
                 <p className="text-xs text-gray-500">{formatDate(post.publishedAt)} · 🌍</p>
               </div>
             </div>
@@ -403,9 +348,9 @@ export default function ModelDetailPage() {
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center space-x-1">
-                  <p className="font-bold text-sm">{model.name}</p>
+                  <p className="font-bold text-sm">{model?.name}</p>
                   <span className="text-blue-500">✓</span>
-                  <p className="text-gray-500 text-sm">@{model.name.replace(/\s+/g, "").toLowerCase()}</p>
+                  <p className="text-gray-500 text-sm">@{model?.name.replace(/\s+/g, "").toLowerCase()}</p>
                   <span className="text-gray-500">·</span>
                   <p className="text-gray-500 text-sm">{formatDate(post.publishedAt)}</p>
                 </div>
@@ -493,7 +438,7 @@ export default function ModelDetailPage() {
 
               {/* TikTok 하단 정보 */}
               <div className="absolute bottom-4 left-4 right-16 text-white">
-                <p className="font-semibold text-sm mb-1">@{model.name.replace(/\s+/g, "").toLowerCase()}</p>
+                <p className="font-semibold text-sm mb-1">@{model?.name.replace(/\s+/g, "").toLowerCase()}</p>
                 <p className="text-sm mb-2">{post.content}</p>
                 <div className="flex flex-wrap gap-1">
                   {post.hashtags.slice(0, 3).map((tag, index) => (
@@ -534,7 +479,7 @@ export default function ModelDetailPage() {
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="bg-red-600 text-white text-xs">AI</AvatarFallback>
                 </Avatar>
-                <p className="text-sm text-gray-600">{model.name}</p>
+                <p className="text-sm text-gray-600">{model?.name}</p>
                 <span className="text-red-600 text-xs">✓</span>
               </div>
               <div className="flex items-center space-x-2 text-xs text-gray-500">
@@ -627,16 +572,16 @@ export default function ModelDetailPage() {
           </Link>
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{model.name}</h1>
-              <p className="text-gray-600 mt-2">{model.description}</p>
+              <h1 className="text-3xl font-bold text-gray-900">{model?.name}</h1>
+              <p className="text-gray-600 mt-2">{model?.description}</p>
               <div className="flex items-center space-x-4 mt-4">
                 <Badge className="bg-green-100 text-green-800">사용 가능</Badge>
-                <span className="text-sm text-gray-500">생성일: {model.createdAt}</span>
+                <span className="text-sm text-gray-500">생성일: {model?.createdAt}</span>
               </div>
             </div>
             <div className="flex space-x-2">
               {isChatEnabled && (
-                <Link href={`/chat/${model.id}`}>
+                <Link href={`/chat/${model?.id}`}>
                   <Button variant="outline" size="sm">
                     <MessageSquare className="h-4 w-4 mr-2" />
                     채팅 페이지 생성
@@ -654,7 +599,7 @@ export default function ModelDetailPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>모델 삭제 확인</AlertDialogTitle>
                   <AlertDialogDescription>
-                    "{model.name}" 모델을 완전히 삭제하시겠습니까?
+                    "{model?.name}" 모델을 완전히 삭제하시겠습니까?
                     <br />
                     <br />
                     <strong>이 작업은 되돌릴 수 없으며, 다음 데이터가 모두 삭제됩니다:</strong>
@@ -910,7 +855,7 @@ export default function ModelDetailPage() {
                       <Input
                         id="api-key"
                         type={showApiKey ? "text" : "password"}
-                        value={model.apiKey || ""}
+                        value={model?.apiKey || ""}
                         readOnly
                         className="font-mono"
                       />
@@ -947,11 +892,11 @@ export default function ModelDetailPage() {
                       <Label>요청 예시</Label>
                       <pre className="bg-gray-100 p-3 rounded-md text-sm overflow-x-auto">
                         {`curl -X POST https://api.aiinfluencer.com/v1/chat \\
-    -H "Authorization: Bearer ${model.apiKey}" \\
+    -H "Authorization: Bearer ${model?.apiKey}" \\
     -H "Content-Type: application/json" \\
     -d '{
       "message": "안녕하세요! 오늘 패션 추천 부탁드려요",
-      "model_id": "${model.id}"
+      "model_id": "${model?.id}"
     }'`}
                       </pre>
                     </div>
@@ -975,19 +920,39 @@ export default function ModelDetailPage() {
                     <Label htmlFor="model-name">모델 이름</Label>
                     <Input
                       id="model-name"
-                      value={model.name}
-                      onChange={(e) => setModel((prev) => ({ ...prev, name: e.target.value }))}
+                      value={model?.name || ""}
+                      onChange={(e) => setModel((prev) => prev ? {
+                        ...prev,
+                        name: e.target.value,
+                        id: prev.id,
+                        description: prev.description,
+                        personality: prev.personality,
+                        tone: prev.tone,
+                        status: prev.status,
+                        createdAt: prev.createdAt
+                      } : prev)}
                       placeholder="AI 인플루언서 이름을 입력하세요"
+                      className="w-full"
                     />
                   </div>
                   <div>
                     <Label htmlFor="model-description">설명</Label>
                     <Textarea
                       id="model-description"
-                      value={model.description}
-                      onChange={(e) => setModel((prev) => ({ ...prev, description: e.target.value }))}
+                      value={model?.description || ""}
+                      onChange={(e) => setModel((prev) => prev ? {
+                        ...prev,
+                        description: e.target.value,
+                        id: prev.id,
+                        name: prev.name,
+                        personality: prev.personality,
+                        tone: prev.tone,
+                        status: prev.status,
+                        createdAt: prev.createdAt
+                      } : prev)}
                       rows={3}
                       placeholder="AI 인플루언서에 대한 설명을 입력하세요"
+                      className="w-full"
                     />
                   </div>
                   <Button onClick={handleUpdateModel} disabled={isUpdating} className="w-full">

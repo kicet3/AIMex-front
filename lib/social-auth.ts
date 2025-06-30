@@ -14,6 +14,10 @@ export interface SocialAuthResult {
     name: string;
     picture?: string;
     provider: string;
+    accessToken?: string;
+    username?: string;
+    accountType?: string;
+    mediaCount?: number;
   };
   error?: string;
 }
@@ -210,37 +214,47 @@ export const naverAuth = {
             resolve({
               success: true,
               data: {
-                id: user.getId(),
-                email: user.getEmail(),
-                name: user.getName(),
-                picture: user.getProfileImage(),
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                picture: user.profile_image,
                 provider: 'naver'
               }
             });
           } else {
             naverLogin.authorize();
             
-            const checkAuth = setInterval(() => {
-              naverLogin.getLoginStatus((newStatus: boolean) => {
-                if (newStatus) {
-                  clearInterval(checkAuth);
-                  const user = naverLogin.user;
-                  resolve({
-                    success: true,
-                    data: {
-                      id: user.getId(),
-                      email: user.getEmail(),
-                      name: user.getName(),
-                      picture: user.getProfileImage(),
-                      provider: 'naver'
-                    }
-                  });
-                }
-              });
-            }, 1000);
+            // 팝업 메시지 리스너
+            const messageHandler = (event: MessageEvent) => {
+              if (event.origin !== window.location.origin) return;
+              
+              if (event.data.type === 'NAVER_AUTH_SUCCESS') {
+                window.removeEventListener('message', messageHandler);
+                const user = event.data.user;
+                resolve({
+                  success: true,
+                  data: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    picture: user.profile_image,
+                    provider: 'naver'
+                  }
+                });
+              } else if (event.data.type === 'NAVER_AUTH_ERROR') {
+                window.removeEventListener('message', messageHandler);
+                resolve({
+                  success: false,
+                  error: event.data.error
+                });
+              }
+            };
             
+            window.addEventListener('message', messageHandler);
+            
+            // 타임아웃 설정
             setTimeout(() => {
-              clearInterval(checkAuth);
+              window.removeEventListener('message', messageHandler);
               resolve({
                 success: false,
                 error: 'Authentication timeout'
@@ -258,6 +272,7 @@ export const naverAuth = {
   }
 };
 
+// 통합 소셜 로그인 함수
 export const socialLogin = async (provider: 'instagram' | 'google' | 'naver'): Promise<SocialAuthResult> => {
   switch (provider) {
     case 'instagram':
@@ -272,4 +287,4 @@ export const socialLogin = async (provider: 'instagram' | 'google' | 'naver'): P
         error: 'Unsupported provider'
       };
   }
-};
+}; 

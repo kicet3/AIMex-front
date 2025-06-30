@@ -198,22 +198,22 @@ export default function InstagramDashboard({ accessToken, userData }: Props) {
                         </Badge>
                       </div>
                     </div>
-                    <CardContent className="p-3">
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                        {item.caption?.substring(0, 100)}...
-                      </p>
-                      <div className="flex justify-between text-sm text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-4 h-4" />
+                    <CardContent className="p-4">
+                      {item.caption && (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          {item.caption}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <Heart className="w-3 h-3" />
                           <span>{item.like_count || 0}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <MessageCircle className="w-4 h-4" />
+                        <div className="flex items-center space-x-2">
+                          <MessageCircle className="w-3 h-3" />
                           <span>{item.comments_count || 0}</span>
                         </div>
-                      </div>
-                      <div className="text-xs text-gray-400 mt-2">
-                        {formatDate(item.timestamp)}
+                        <span>{formatDate(item.timestamp)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -223,72 +223,82 @@ export default function InstagramDashboard({ accessToken, userData }: Props) {
 
             {/* 인사이트 탭 */}
             <TabsContent value="insights" className="space-y-4">
-              {userInfo.account_type === 'PERSONAL' ? (
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <div className="text-gray-500">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <h3 className="text-lg font-medium mb-2">인사이트를 사용할 수 없습니다</h3>
-                      <p className="text-sm">인사이트 기능은 비즈니스 또는 크리에이터 계정에서만 사용할 수 있습니다.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
+              {insights.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {insights.length > 0 ? insights.map((insight, index) => (
+                  {insights.map((insight, index) => (
                     <Card key={index}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">{insight.title}</CardTitle>
-                        <CardDescription className="text-xs">{insight.description}</CardDescription>
+                      <CardHeader>
+                        <CardTitle className="text-lg">{insight.title}</CardTitle>
+                        <CardDescription>{insight.description}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-blue-600 mb-1">
-                          {insight.values[0]?.value || 0}
-                        </div>
-                        <div className="flex items-center text-xs text-gray-500">
-                          <TrendingUp className="w-3 h-3 mr-1" />
-                          {insight.period}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )) : (
-                    <Card className="col-span-full">
-                      <CardContent className="p-6 text-center">
-                        <div className="text-gray-500">
-                          <TrendingUp className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">인사이트 데이터를 불러오는 중이거나 데이터가 없습니다.</p>
+                        <div className="space-y-2">
+                          {insight.values.map((value, valueIndex) => (
+                            <div key={valueIndex} className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">
+                                {new Date(value.end_time).toLocaleDateString('ko-KR')}
+                              </span>
+                              <span className="font-semibold">{value.value.toLocaleString()}</span>
+                            </div>
+                          ))}
                         </div>
                       </CardContent>
                     </Card>
-                  )}
+                  ))}
                 </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-600 mb-2">인사이트 데이터 없음</h3>
+                    <p className="text-gray-500">
+                      Business 또는 Creator 계정에서만 인사이트를 확인할 수 있습니다.
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
             {/* 관리 탭 */}
             <TabsContent value="management" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>콘텐츠 관리</CardTitle>
-                    <CardDescription>게시물 업로드 및 관리</CardDescription>
+                    <CardTitle>게시물 관리</CardTitle>
+                    <CardDescription>새로운 게시물을 업로드하거나 기존 게시물을 수정합니다</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent>
                     <Button className="w-full">새 게시물 업로드</Button>
-                    <Button variant="outline" className="w-full">예약 게시</Button>
-                    <Button variant="outline" className="w-full">스토리 관리</Button>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>소통 관리</CardTitle>
-                    <CardDescription>댓글 및 메시지 관리</CardDescription>
+                    <CardTitle>댓글 관리</CardTitle>
+                    <CardDescription>댓글을 모니터링하고 관리합니다</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button className="w-full">댓글 관리</Button>
-                    <Button variant="outline" className="w-full">자동 응답 설정</Button>
-                    <Button variant="outline" className="w-full">멘션 알림</Button>
+                  <CardContent>
+                    <Button variant="outline" className="w-full">댓글 보기</Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>스토리 관리</CardTitle>
+                    <CardDescription>Instagram 스토리를 관리합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button variant="outline" className="w-full">스토리 업로드</Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>예약 게시</CardTitle>
+                    <CardDescription>게시물을 미리 예약하여 자동으로 게시합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button variant="outline" className="w-full">예약 설정</Button>
                   </CardContent>
                 </Card>
               </div>
@@ -298,4 +308,4 @@ export default function InstagramDashboard({ accessToken, userData }: Props) {
       )}
     </div>
   )
-}
+} 

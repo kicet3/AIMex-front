@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,32 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { PenTool, ImageIcon, Send, Lightbulb, Plus } from "lucide-react"
+import { PenTool, ImageIcon, Send, Lightbulb, Plus, Instagram, CheckCircle, AlertCircle } from "lucide-react"
 import type { AIModel } from "@/lib/types"
-
-// 샘플 모델 데이터
-const availableModels: AIModel[] = [
-  {
-    id: "1",
-    name: "패션 인플루언서 AI",
-    description: "20대 여성 타겟의 패션 트렌드 전문 AI 인플루언서",
-    personality: "친근하고 트렌디한",
-    tone: "캐주얼하고 친밀한",
-    status: "ready",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "3",
-    name: "피트니스 코치 AI",
-    description: "운동 및 건강 관리 전문 AI 인플루언서",
-    personality: "동기부여하고 에너지 넘치는",
-    tone: "격려하고 활기찬",
-    status: "ready",
-    createdAt: "2024-01-10",
-  },
-]
+import { socialLogin } from "@/lib/social-auth"
 
 export default function CreatePostPage() {
+  const [models, setModels] = useState<AIModel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>("")
   const [postData, setPostData] = useState({
     title: "",
@@ -49,9 +31,55 @@ export default function CreatePostPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [instagramConnected, setInstagramConnected] = useState(false)
+  const [instagramData, setInstagramData] = useState<any>(null)
+  const [isConnectingInstagram, setIsConnectingInstagram] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    setLoading(true)
+    fetch("/api/v1/influencers")
+      .then((res) => {
+        if (!res.ok) throw new Error("모델 목록을 불러오지 못했습니다.")
+        return res.json()
+      })
+      .then((data) => {
+        setModels(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [])
+
+  const handleInstagramConnect = async () => {
+    setIsConnectingInstagram(true)
+    setError(null)
+
+    try {
+      const result = await socialLogin('instagram')
+      
+      if (result.success && result.data) {
+        const { accessToken, ...userData } = result.data as any
+        
+        setInstagramData({
+          accessToken,
+          user: userData
+        })
+        setInstagramConnected(true)
+      } else {
+        setError(result.error || 'Instagram 연결에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Instagram connection error:', error)
+      setError('Instagram 연결 중 오류가 발생했습니다.')
+    } finally {
+      setIsConnectingInstagram(false)
+    }
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -76,7 +104,7 @@ export default function CreatePostPage() {
 
     // AI 콘텐츠 생성 시뮬레이션 (사용자 요청 내용 포함)
     setTimeout(() => {
-      const selectedModelData = availableModels.find((m) => m.id === selectedModel)
+      const selectedModelData = models.find((m) => m.id === selectedModel)
 
       // 사용자가 포함하고 싶은 내용을 반영한 콘텐츠 생성
       let baseContent = ""
@@ -138,7 +166,7 @@ export default function CreatePostPage() {
     }, 1500)
   }
 
-  const selectedModelData = availableModels.find((m) => m.id === selectedModel)
+  const selectedModelData = models.find((m) => m.id === selectedModel)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,6 +190,58 @@ export default function CreatePostPage() {
                 <CardDescription>게시글 생성을 위한 설정을 입력하세요</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Instagram 연결 상태 */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Instagram className="h-5 w-5 text-pink-600" />
+                      <span className="font-medium">Instagram 연결</span>
+                    </div>
+                    {instagramConnected ? (
+                      <Badge className="bg-green-100 text-green-800 flex items-center space-x-1">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>연결됨</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="flex items-center space-x-1">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>연결 필요</span>
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {instagramConnected ? (
+                    <div className="text-sm text-gray-600">
+                      <p>연결된 계정: @{instagramData?.user?.username}</p>
+                      <p className="text-xs text-gray-500 mt-1">게시글을 Instagram에 직접 발행할 수 있습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Instagram Business 계정을 연결하면 생성된 게시글을 직접 발행할 수 있습니다.
+                      </p>
+                      <Button 
+                        onClick={handleInstagramConnect}
+                        disabled={isConnectingInstagram}
+                        size="sm"
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                      >
+                        {isConnectingInstagram ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            <span>연결 중...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <Instagram className="h-4 w-4" />
+                            <span>Instagram 연결</span>
+                          </div>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="model-select">AI 모델</Label>
@@ -170,7 +250,7 @@ export default function CreatePostPage() {
                         <SelectValue placeholder="모델을 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableModels.map((model) => (
+                        {models.map((model) => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
                           </SelectItem>
@@ -203,42 +283,40 @@ export default function CreatePostPage() {
                     </Label>
                     <Textarea
                       id="include-content"
-                      placeholder="게시글에 꼭 포함되었으면 하는 내용을 입력하세요&#10;예: 특정 제품명, 할인 정보, 이벤트 안내, 개인적인 경험담 등"
+                      placeholder="AI가 게시글에 포함할 특정 내용이나 키워드를 입력하세요"
                       value={postData.includeContent}
                       onChange={(e) => handleInputChange("includeContent", e.target.value)}
-                      rows={4}
+                      rows={3}
                     />
-                    <p className="text-xs text-gray-500 mt-1">💡 AI가 이 내용을 참고하여 더 맞춤형 게시글을 생성합니다</p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="platform">플랫폼</Label>
-                    <Select value={postData.platform} onValueChange={(value) => handleInputChange("platform", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="플랫폼 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="instagram">Instagram</SelectItem>
-                        <SelectItem value="facebook">Facebook</SelectItem>
-                        <SelectItem value="twitter">Twitter</SelectItem>
-                        <SelectItem value="tiktok">TikTok</SelectItem>
-                        <SelectItem value="youtube">YouTube</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <div>
                     <Label htmlFor="hashtags">해시태그</Label>
                     <Input
                       id="hashtags"
-                      placeholder="#패션 #트렌드 #스타일"
+                      placeholder="예: #패션 #트렌드 #스타일링"
                       value={postData.hashtags}
                       onChange={(e) => handleInputChange("hashtags", e.target.value)}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="scheduled-date">예약 발행</Label>
+                    <Label htmlFor="platform">플랫폼</Label>
+                    <Select value={postData.platform} onValueChange={(value) => handleInputChange("platform", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="플랫폼을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Instagram">Instagram</SelectItem>
+                        <SelectItem value="Facebook">Facebook</SelectItem>
+                        <SelectItem value="Twitter">Twitter</SelectItem>
+                        <SelectItem value="YouTube">YouTube</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="scheduled-date">예약 발행 (선택사항)</Label>
                     <Input
                       id="scheduled-date"
                       type="datetime-local"
@@ -246,78 +324,112 @@ export default function CreatePostPage() {
                       onChange={(e) => handleInputChange("scheduledDate", e.target.value)}
                     />
                   </div>
+                </div>
 
-                  {/* 이미지 업로드 */}
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="flex items-center space-x-2">
-                        <ImageIcon className="h-4 w-4" />
-                        <span>이미지 업로드</span>
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-1">게시글에 첨부할 이미지를 업로드하세요</p>
-                    </div>
-
-                    <input
-                      ref={fileInputRef}
-                      id="images"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div 
-                        className="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors cursor-pointer"
-                        onClick={triggerImageUpload}
-                      >
-                        <div className="text-center">
-                          <Plus className="h-6 w-6 text-gray-400 mx-auto mb-1" />
-                          <p className="text-xs text-gray-600">이미지 추가</p>
-                        </div>
-                      </div>
-                      
-                      {previewImages.map((src, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={src}
-                            alt={`preview-${index}`}
-                            className="aspect-video object-cover rounded-lg border"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded-lg flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                              <Button size="sm" variant="secondary">
-                                <ImageIcon className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={() => {
-                                  setPreviewImages(prev => prev.filter((_, i) => i !== index))
-                                }}
-                              >
-                                <Plus className="h-3 w-3 rotate-45" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <p className="text-xs text-gray-500">
-                      권장: 1920x1080px, JPG/PNG/WebP, 최대 10MB
-                    </p>
-                  </div>
-
+                <div className="flex space-x-3">
                   <Button
                     onClick={handleGenerateContent}
                     disabled={!selectedModel || !postData.title || isGenerating}
-                    className="w-full"
+                    className="flex-1"
                   >
-                    {isGenerating ? "생성 중..." : "콘텐츠 생성"}
+                    {isGenerating ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>생성 중...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <Lightbulb className="h-4 w-4" />
+                        <span>AI 콘텐츠 생성</span>
+                      </div>
+                    )}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 미리보기 패널 */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <ImageIcon className="h-5 w-5" />
+                  <span>미리보기</span>
+                </CardTitle>
+                <CardDescription>생성된 게시글을 미리 확인하고 수정하세요</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {generatedContent ? (
+                  <>
+                    <div className="border rounded-lg p-4 bg-white">
+                      <div className="whitespace-pre-wrap text-sm">{generatedContent}</div>
+                      {postData.hashtags && (
+                        <div className="mt-3 text-blue-600 text-sm">
+                          {postData.hashtags.split(' ').map((tag, index) => (
+                            <span key={index} className="mr-2">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 이미지 미리보기 */}
+                    {previewImages.length > 0 && (
+                      <div>
+                        <Label>첨부 이미지</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                          {previewImages.map((url, index) => (
+                            <div key={index} className="aspect-square rounded-lg overflow-hidden">
+                              <img src={url} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex space-x-3">
+                      <Button
+                        onClick={triggerImageUpload}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        이미지 추가
+                      </Button>
+                      <Button
+                        onClick={handlePublishPost}
+                        disabled={isPublishing}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        {isPublishing ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>발행 중...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <Send className="h-4 w-4" />
+                            <span>게시글 발행</span>
+                          </div>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Lightbulb className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>AI 콘텐츠 생성 버튼을 클릭하여 게시글을 생성하세요</p>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
               </CardContent>
             </Card>
           </div>
