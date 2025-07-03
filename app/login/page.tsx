@@ -1,52 +1,48 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bot, Instagram } from "lucide-react"
+import { Bot } from "lucide-react"
 import { socialLogin } from "@/lib/social-auth"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth()
 
-  const handleOAuthLogin = async (provider: "instagram" | "google" | "naver") => {
+  // 이미 로그인된 사용자는 대시보드로 리다이렉트
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [isAuthenticated, authLoading, router])
+
+  const handleOAuthLogin = async (provider: "google" | "naver") => {
     setIsLoading(provider)
 
     try {
-      if (provider === "instagram") {
-        // Instagram 로그인은 별도 처리 (팝업 방식)
-        const result = await socialLogin('instagram')
-        if (result.success && result.data) {
-          // Instagram 로그인 성공 시 처리
-          const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ0ZXN0QGdtYWlsLmNvbSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJjb21wYW55IjoiVGVzdCBDb21wYW55IiwiZ3JvdXBzIjpbImFkbWluIiwidXNlciJdLCJwZXJtaXNzaW9ucyI6WyIqOioiXSwiZXhwIjoxNzU2NjQ2ODAwfQ.qMgTUwDXMXJkAxNVKkvOcECH8Ys8HYY8C9r8bLu5XQo'
-          login(mockToken)
-          router.push("/dashboard")
-        } else {
-          console.error('Instagram 로그인 실패:', result.error)
-        }
-      } else {
-        // 기존 Google/Naver 로그인 로직
-        setTimeout(() => {
-          try {
-            const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ0ZXN0QGdtYWlsLmNvbSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJjb21wYW55IjoiVGVzdCBDb21wYW55IiwiZ3JvdXBzIjpbImFkbWluIiwidXNlciJdLCJwZXJtaXNzaW9ucyI6WyIqOioiXSwiZXhwIjoxNzU2NjQ2ODAwfQ.qMgTUwDXMXJkAxNVKkvOcECH8Ys8HYY8C9r8bLu5XQo'
-            login(mockToken)
-            router.push("/dashboard")
-          } catch (error) {
-            console.error('로그인 실패:', error)
-          } finally {
-            setIsLoading(null)
-          }
-        }, 1500)
-      }
+      // 리다이렉트 방식 소셜 로그인 시작
+      // socialLogin은 현재 페이지를 localStorage에 저장하고 리다이렉트함
+      await socialLogin(provider)
+      // 이 시점에서 페이지가 리다이렉트되므로 아래 코드는 실행되지 않음
     } catch (error) {
-      console.error('로그인 실패:', error)
-    } finally {
+      console.error('로그인 시작 실패:', error)
+      alert('로그인을 시작할 수 없습니다. 다시 시도해주세요.')
       setIsLoading(null)
     }
+  }
+
+  // 인증 로딩 중이거나 이미 로그인된 상태라면 로딩 표시
+  if (authLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -62,26 +58,15 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           <div className="text-center mb-6">
             <p className="text-sm text-gray-600 mb-2">소셜 계정으로 간편하게 시작하세요</p>
-            <p className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-              💡 처음 로그인하면 자동으로 계정이 생성됩니다
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                💡 처음 로그인하면 자동으로 계정이 생성됩니다
+              </p>
+              <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
+                🏢 비즈니스 계정 권한으로 콘텐츠 관리 및 인사이트를 확인하세요
+              </p>
+            </div>
           </div>
-
-          {/* Instagram 로그인 버튼 */}
-          <Button
-            onClick={() => handleOAuthLogin("instagram")}
-            disabled={isLoading !== null}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white flex items-center justify-center space-x-3 py-3"
-          >
-            {isLoading === "instagram" ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            ) : (
-              <>
-                <Instagram className="w-5 h-5" />
-                <span className="font-medium">Instagram으로 시작하기</span>
-              </>
-            )}
-          </Button>
 
           {/* 구글 로그인 버튼 */}
           <Button

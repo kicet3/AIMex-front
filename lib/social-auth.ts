@@ -14,10 +14,6 @@ export interface SocialAuthResult {
     name: string;
     picture?: string;
     provider: string;
-    accessToken?: string;
-    username?: string;
-    accountType?: string;
-    mediaCount?: number;
   };
   error?: string;
 }
@@ -34,6 +30,10 @@ export const instagramAuth = {
         return;
       }
       
+      // 현재 페이지 URL을 localStorage에 저장 (리다이렉트 후 돌아올 페이지)
+      localStorage.setItem('social_auth_return_url', window.location.href);
+      localStorage.setItem('social_auth_provider', 'instagram');
+      
       // Instagram Login 스코프 (새로운 권한)
       const scopes = [
         'instagram_business_basic',
@@ -44,67 +44,12 @@ export const instagramAuth = {
       
       const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${instagramAuth.clientId}&redirect_uri=${encodeURIComponent(instagramAuth.redirectUri)}&scope=${scopes}&response_type=code`;
       
-      const popup = window.open(authUrl, 'instagram-auth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      // 팝업 대신 현재 페이지에서 리다이렉트
+      window.location.href = authUrl;
       
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          resolve({
-            success: false,
-            error: 'Authentication cancelled'
-          });
-        }
-      }, 1000);
-
-      // 메시지 리스너로 콜백 결과 수신
-      const messageHandler = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'INSTAGRAM_AUTH_SUCCESS') {
-          clearInterval(checkClosed);
-          popup?.close();
-          window.removeEventListener('message', messageHandler);
-          
-          resolve({
-            success: true,
-            data: {
-              id: event.data.user.id,
-              email: event.data.user.email || '',
-              name: event.data.user.name || event.data.user.username,
-              picture: event.data.user.profile_picture_url,
-              provider: 'instagram',
-              accessToken: event.data.accessToken,
-              username: event.data.user.username,
-              accountType: event.data.user.account_type,
-              mediaCount: event.data.user.media_count
-            }
-          });
-        } else if (event.data.type === 'INSTAGRAM_AUTH_ERROR') {
-          clearInterval(checkClosed);
-          popup?.close();
-          window.removeEventListener('message', messageHandler);
-          
-          resolve({
-            success: false,
-            error: event.data.error
-          });
-        }
-      };
-
-      window.addEventListener('message', messageHandler);
-      
-      // 타임아웃 설정 (30초)
-      setTimeout(() => {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageHandler);
-        if (popup && !popup.closed) {
-          popup.close();
-        }
-        resolve({
-          success: false,
-          error: 'Authentication timeout'
-        });
-      }, 30000);
+      // 리다이렉트 방식에서는 Promise가 의미가 없으므로 빈 Promise 반환
+      // 실제 처리는 콜백 페이지에서 수행됨
+      resolve({ success: true, data: { provider: 'instagram' } });
     });
   }
 };
@@ -112,57 +57,39 @@ export const instagramAuth = {
 // Google OAuth
 export const googleAuth = {
   clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+  redirectUri: process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/api/auth/callback/google` : ''),
   
-  loadScript: (): Promise<void> => {
-    return new Promise((resolve, reject) => {
+  login: (): Promise<SocialAuthResult> => {
+    return new Promise((resolve) => {
       if (typeof window === 'undefined') {
-        reject(new Error('Not available in server environment'));
+        resolve({ success: false, error: 'Not available in server environment' });
         return;
       }
       
-      if (window.gapi) {
-        resolve();
-        return;
-      }
+      // 현재 페이지 URL을 localStorage에 저장 (리다이렉트 후 돌아올 페이지)
+      localStorage.setItem('social_auth_return_url', window.location.href);
+      localStorage.setItem('social_auth_provider', 'google');
       
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => {
-        window.gapi.load('auth2', () => {
-          window.gapi.auth2.init({
-            client_id: googleAuth.clientId,
-          }).then(resolve).catch(reject);
-        });
-      };
-      script.onerror = reject;
-      document.head.appendChild(script);
+      // Google OAuth2 authorization URL 생성
+      const params = new URLSearchParams({
+        client_id: googleAuth.clientId,
+        redirect_uri: googleAuth.redirectUri,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'consent',
+        state: Math.random().toString(36).substring(2, 15)
+      });
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      
+      // 팝업 대신 현재 페이지에서 리다이렉트
+      window.location.href = authUrl;
+      
+      // 리다이렉트 방식에서는 Promise가 의미가 없으므로 빈 Promise 반환
+      // 실제 처리는 콜백 페이지에서 수행됨
+      resolve({ success: true, data: { provider: 'google' } });
     });
-  },
-  
-  login: async (): Promise<SocialAuthResult> => {
-    try {
-      await googleAuth.loadScript();
-      
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      const user = await authInstance.signIn();
-      const profile = user.getBasicProfile();
-      
-      return {
-        success: true,
-        data: {
-          id: profile.getId(),
-          email: profile.getEmail(),
-          name: profile.getName(),
-          picture: profile.getImageUrl(),
-          provider: 'google'
-        }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Google authentication failed'
-      };
-    }
   }
 };
 
@@ -201,78 +128,37 @@ export const naverAuth = {
     });
   },
   
-  login: async (): Promise<SocialAuthResult> => {
-    try {
-      await naverAuth.loadScript();
+  login: (): Promise<SocialAuthResult> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve({ success: false, error: 'Not available in server environment' });
+        return;
+      }
       
-      return new Promise((resolve) => {
-        const naverLogin = window.naver.loginInstance;
-        
-        naverLogin.getLoginStatus((status: boolean) => {
-          if (status) {
-            const user = naverLogin.user;
-            resolve({
-              success: true,
-              data: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                picture: user.profile_image,
-                provider: 'naver'
-              }
-            });
-          } else {
-            naverLogin.authorize();
-            
-            // 팝업 메시지 리스너
-            const messageHandler = (event: MessageEvent) => {
-              if (event.origin !== window.location.origin) return;
-              
-              if (event.data.type === 'NAVER_AUTH_SUCCESS') {
-                window.removeEventListener('message', messageHandler);
-                const user = event.data.user;
-                resolve({
-                  success: true,
-                  data: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                    picture: user.profile_image,
-                    provider: 'naver'
-                  }
-                });
-              } else if (event.data.type === 'NAVER_AUTH_ERROR') {
-                window.removeEventListener('message', messageHandler);
-                resolve({
-                  success: false,
-                  error: event.data.error
-                });
-              }
-            };
-            
-            window.addEventListener('message', messageHandler);
-            
-            // 타임아웃 설정
-            setTimeout(() => {
-              window.removeEventListener('message', messageHandler);
-              resolve({
-                success: false,
-                error: 'Authentication timeout'
-              });
-            }, 30000);
-          }
-        });
+      // 현재 페이지 URL을 localStorage에 저장 (리다이렉트 후 돌아올 페이지)
+      localStorage.setItem('social_auth_return_url', window.location.href);
+      localStorage.setItem('social_auth_provider', 'naver');
+      
+      // Naver OAuth2 authorization URL 생성
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: naverAuth.clientId,
+        redirect_uri: naverAuth.redirectUri,
+        state: Math.random().toString(36).substring(2, 15)
       });
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Naver authentication failed'
-      };
-    }
+      
+      const authUrl = `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
+      
+      // 팝업 대신 현재 페이지에서 리다이렉트
+      window.location.href = authUrl;
+      
+      // 리다이렉트 방식에서는 Promise가 의미가 없으므로 빈 Promise 반환
+      // 실제 처리는 콜백 페이지에서 수행됨
+      resolve({ success: true, data: { provider: 'naver' } });
+    });
   }
 };
 
-// 통합 소셜 로그인 함수
 export const socialLogin = async (provider: 'instagram' | 'google' | 'naver'): Promise<SocialAuthResult> => {
   switch (provider) {
     case 'instagram':
@@ -287,4 +173,4 @@ export const socialLogin = async (provider: 'instagram' | 'google' | 'naver'): P
         error: 'Unsupported provider'
       };
   }
-}; 
+};

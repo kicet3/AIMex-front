@@ -1,37 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { InstagramAPIService } from '@/lib/instagram-business-api'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const accessToken = searchParams.get('access_token')
-    const accountId = searchParams.get('account_id') || 'me'
-    const limit = searchParams.get('limit') || '20'
-    
-    if (!accessToken) {
+    const accountId = searchParams.get('account_id')
+    const limit = parseInt(searchParams.get('limit') || '25')
+
+    if (!accessToken || !accountId) {
       return NextResponse.json(
-        { success: false, error: 'Access token is required' },
+        { error: 'Missing access_token or account_id' },
         { status: 400 }
       )
     }
 
-    // Instagram Graph API를 통해 미디어 정보 가져오기
-    const response = await fetch(`https://graph.instagram.com/v18.0/${accountId}/media?fields=id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count,thumbnail_url&limit=${limit}&access_token=${accessToken}`)
-    
-    if (!response.ok) {
-      throw new Error(`Instagram API error: ${response.status}`)
-    }
+    const instagramService = new InstagramAPIService(accessToken)
+    const media = await instagramService.getMedia(accountId, limit)
 
-    const data = await response.json()
-    
     return NextResponse.json({
       success: true,
-      data: data.data || []
+      data: media
     })
   } catch (error) {
-    console.error('Error fetching Instagram media:', error)
+    console.error('Instagram media fetch error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch Instagram media' },
+      { error: 'Failed to fetch Instagram media' },
       { status: 500 }
     )
   }
-} 
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { accessToken, accountId, imageUrl, caption } = body
+
+    if (!accessToken || !accountId || !imageUrl) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    const instagramService = new InstagramAPIService(accessToken)
+    
+    // 미디어 컨테이너 생성
+    const container = await instagramService.createMediaContainer(accountId, imageUrl, caption)
+    
+    // 미디어 게시
+    const publishResult = await instagramService.publishMedia(accountId, container.id)
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        containerId: container.id,
+        mediaId: publishResult.id
+      }
+    })
+  } catch (error) {
+    console.error('Instagram media post error:', error)
+    return NextResponse.json(
+      { error: 'Failed to post Instagram media' },
+      { status: 500 }
+    )
+  }
+}

@@ -2,15 +2,15 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Bot, List, TestTube, PenTool, LogOut, User, Shield, Instagram } from "lucide-react"
-import { useAuth, usePermission } from "@/hooks/use-auth"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Bot, List, TestTube, PenTool, LogOut, User, Shield } from "lucide-react"
+import { useAuth, usePermission } from "@/hooks/use-auth"
 
 export function Navigation() {
   const pathname = usePathname()
@@ -43,7 +43,6 @@ export function Navigation() {
           </div>
 
           <div className="hidden md:flex md:space-x-8 -ml-5">
-            {hasPermission('model', 'read') && (
               <Link
                 href="/dashboard"
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
@@ -53,10 +52,9 @@ export function Navigation() {
                 }`}
               >
                 <List className="h-4 w-4 mr-2" />
-                모델 목록
+                인플루언서 목록
               </Link>
-            )}
-            {hasPermission('model', 'test') && (
+            
               <Link
                 href="/test-model"
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
@@ -66,10 +64,9 @@ export function Navigation() {
                 }`}
               >
                 <TestTube className="h-4 w-4 mr-2" />
-                모델 테스트
+                인플루언서 테스트
               </Link>
-            )}
-            {hasPermission('post', 'read') && (
+            
               <Link
                 href="/post_list"
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
@@ -81,18 +78,7 @@ export function Navigation() {
                 <PenTool className="h-4 w-4 mr-2" />
                 게시글 목록
               </Link>
-            )}
-            <Link
-              href="/instagram"
-              className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
-                pathname === "/instagram"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Instagram className="h-4 w-4 mr-2" />
-              Instagram 관리
-            </Link>
+            
           </div>
 
           <div className="flex items-center">
@@ -101,17 +87,17 @@ export function Navigation() {
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     {user?.profileImage && (
-                      <AvatarImage src={user.profileImage} alt={user.name} />
+                      <AvatarImage src={user.profileImage} alt={user.name || user.user_name} />
                     )}
                     <AvatarFallback>
-                      {user?.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+                      {(user?.name || user?.user_name)?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{user?.name}</p>
+                  <p className="font-medium">{user?.name || user?.user_name}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                   <p className="text-xs text-gray-500">{user?.company}</p>
                 </div>
@@ -119,10 +105,10 @@ export function Navigation() {
                   <User className="mr-2 h-4 w-4" />
                   <span>이메일 변경</span>
                 </DropdownMenuItem>
-                {isAdmin() && (
+                {user?.teams?.some(team => team.group_id === 1) && (
                   <Link href="/administrator">
                     <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
+                      <Shield className="mr-2 h-4 w-4" />
                       <span>관리자 설정</span>
                     </DropdownMenuItem>
                   </Link>
