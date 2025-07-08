@@ -103,7 +103,7 @@ export default function LoginPage() {
           </Button>
 
           {/* 네이버 로그인 버튼 */}
-          {/* <Button
+          <Button
             onClick={() => handleOAuthLogin("naver")}
             disabled={isLoading !== null}
             className="w-full bg-[#03C75A] hover:bg-[#02B351] text-white flex items-center justify-center space-x-3 py-3"
@@ -118,7 +118,7 @@ export default function LoginPage() {
                 <span className="font-medium">네이버로 시작하기</span>
               </>
             )}
-          </Button> */}
+          </Button>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
